@@ -1,0 +1,51 @@
+[MASTER]
+# Python code to execute, usually for sys.path manipulation such as
+# pygtk.require().
+
+
+[MESSAGES CONTROL]
+
+# The following messages are disabled
+#
+# star-args: Valid and essential in many situations.
+#            Doesn't help readability and should not be used needlessly, but no cause for a blanket ban.
+#
+# no-member: This works very poorly, including on many parts of the stdlib where members are generated
+#            programatically. It's a shame, because it's a really useful warning, but it's just too verbose.
+#
+# bad-continuation: Pylint only supports hardcoded continuation width, which is really nasty for kwargs calls
+#                   We prefer to rely on the artistic sense of the developer here
+#
+disable=star-args,no-member,bad-continuation
+
+[REPORTS]
+
+output-format=colorized
+
+[FORMAT]
+
+max-line-length=120
+max-module-lines=2000
+indent-string='    '
+
+[DESIGN]
+
+max-args=25
+max-locals=25
+max-returns=28
+max-branches=36
+max-statements=104
+max-parents=7
+max-attributes=50
+min-public-methods=0
+max-public-methods=38
+max-nested-blocks=7
+
+[SIMILARITIES]
+
+min-similarity-lines=50
+
+[TYPECHECK]
+
+# Modules that act as import proxies, pylint doesn't know how to handle those
+ignored-modules=datetime,jnius,cStringIO,itertools,gevent,select

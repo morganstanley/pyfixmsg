@@ -1,0 +1,193 @@
+"""This codec implements a simpler repeating group logic where the first tag is seen as a marker
+for repetition in a repeating group (rather than relying on the order of the tags) """
+
+import re
+
+from collections import deque
+
+from pyfixmsg import RepeatingGroup
+from pyfixmsg.reference import HEADER_SORT_MAP
+from pyfixmsg.util import int_or_str
+
+SEPARATOR = '\1'
+"""
+Standard separator for the StringFIX codec between tag value pairs.
+However, the codec supports an arbitrary separator as using | or ; or "<SOH>" is
+common.
+"""
+
+DELIMITER = '='
+FIX_REGEX_STRING = r'([^{s}{d}]*)[{d}](.*?){s}(?!\w+{s})'
+FIX_REGEX = re.compile(FIX_REGEX_STRING.format(d=DELIMITER, s=SEPARATOR).encode('UTF-8'), re.DOTALL)
+MICROSECONDS = 0
+MILLISECONDS = 1
+
+
+class Codec(object):
+    """
+    FIX codec.  initialise with a :py:class:`~pyfixmsg.reference.FixSpec` to support
+    repeating groups.
+
+    This class is used to transform the serialised FIX message into an instance of ``fragment_class``, default ``dict``
+    Tags are assumed to be all of type ``int``, repeating groups are lists of ``fragment_class``
+
+    """
+
+    def __init__(self, spec=None, no_groups=False, fragment_class=dict):
+        """
+        :param spec: the :py:class:`~pyfixmsg.reference.FixSpec` instance to use to parse messages.
+        :param no_groups: set to ``True`` to ignore repeating groups
+        :param fragment_class: Which dict-like object to return when parsing messages. Also sets the type of
+          members of repeating groups """
+        self.spec = spec
+        if spec is None:
+            self._no_groups = True
+        else:
+            self._no_groups = no_groups
+        self._frg_class = fragment_class
+
+    def parse(self, buff, delimiter=DELIMITER, separator=SEPARATOR, encoding='UTF-8'):
+        """
+        Parse a FIX message. The FIX message is expected to be a bytestring and the output
+        is a dictionary-like object which type is determined by the ``fragment_class`` constructor argument
+        and which keys are ``int`` and values ``unicode``. Note that if there is a non-int tag in the message,
+        this will be stored as a key in the original format (i.e. bytestring)
+
+        :param buff: Buffer to parse
+        :type buff: ``bytestr``
+        :param delimiter: A character that separate key and values inside the FIX message. Generally '='. Note the type:
+          because of the way the buffer is tokenised, this needs to be unicode (or ``str`` in python 2.7*).
+        :type delimiter: ``unicode``
+        :param separator: A character that separate key+value pairs inside the FIX message. Generally '\1'. See type
+          observations above.
+        :type separator: ``unicode``
+        :param encoding: The encoding of the buffer. Generally expected to be 'UTF-8'. Valid values as per
+        the bytestring method ``encode``.
+        """
+        custom_r = re.compile(FIX_REGEX_STRING.format(d=re.escape(delimiter),
+                                                      s=re.escape(separator)).encode('UTF-8'),
+                              re.DOTALL)
+        tagvals = custom_r.findall(buff)
+
+        msg_type = None
+        if not self._no_groups and self.spec is not None:
+            for i in range(4):
+                if tagvals[i][0] == b'35':
+                    msg_type = self.spec.msg_types.get(tagvals[i][1].decode(encoding))
+        tagvals = ((int_or_str(tval[0]), tval[1].decode(encoding)) for tval in tagvals)
+        if self._no_groups or self.spec is None or msg_type is None:
+            # no groups can be found without a spec, so no point looking up the msg type.
+            return self._frg_class(tagvals)
+        msg = self._frg_class()
+        groups = msg_type.groups
+        for tag, value in tagvals:
+            if tag not in groups:
+                msg[tag] = value
+            else:
+                contents, last_tagval = self._process_group(tag, tagvals,
+                                                            msg_type=msg_type,
+                                                            group=groups[tag])
+                msg[tag] = contents
+                if last_tagval:
+                    msg[last_tagval[0]] = last_tagval[1]
+        return msg
+
+    def _process_group(self, identifying_tag, enumerator, msg_type, group):
+        """
+        Recursively process a group
+        Returns ``(count_tag, [{}, {}])``
+        """
+        rep_group = RepeatingGroup()
+        rep_group.number_tag = identifying_tag
+        member = self._frg_class()
+        first_tag = None
+        inner_groups = group.groups
+        valid_tags = group.tags
+        for tag, value in enumerator:
+            if first_tag is None:
+                # handle first tag: we expect all the members of the group to start with this tag
+                first_tag = tag
+                rep_group.first_tag = tag
+                member[tag] = value
+            elif first_tag == tag:
+                # we start a new group, replace the current member by an empty one and add the current tag
+                rep_group.append(member)
+                member = self._frg_class()
+                member[tag] = value
+            elif tag in valid_tags:
+                # tag is a member, we just add
+                member[tag] = value
+            elif tag in inner_groups:
+                # tag is starting a new sub group, we recurse
+                contents, last_tagval = self._process_group(tag, enumerator, msg_type, group.groups[tag])
+                member[tag] = contents
+                if last_tagval:
+                    # we are not at the end of the message.
+                    tag, val = last_tagval
+                    if tag == first_tag:
+                        # the embedded group finished this member
+                        rep_group.append(member)
+                        member = self._frg_class()
+                        member[tag] = val
+                    elif tag in group.tags:
+                        # didn't finish this member
+                        member[tag] = val
+                    else:
+                        # didn't finish the message but finished the current group
+                        rep_group.append(member)
+                        return rep_group, (tag, val)
+            else:
+                # we're out of the group.
+                rep_group.append(member)
+                return rep_group, (tag, value)
+        # we are reaching the end of the message, so complete, no further tags to pass on
+        rep_group.append(member)
+        return rep_group, None
+
+    def _unmap(self, msg):
+        """
+        Create a tag,value sequence from a FixMessage (dict-type interface).
+        This will leverage the spec to order the tags the same way they are defined in the spec.
+        If tags are present on the message that are not in the spec they are added in order at the end
+        of the message before the tail (tag 10).
+        """
+
+        def sort_values(msg, spec):
+            """ Sort {tag:value} map into an iterable  """
+            tvals = list(msg.items())
+            get_sorting_key = lambda x: spec.sorting_key.get(x[0], int(10e8 + x[0]))
+            tvals.sort(key=get_sorting_key)
+            #  using a deque for this already-sorted data structure yields a ~10% speed improvement on serialisation
+            expanded = deque()
+            for tag, val in tvals:
+                if isinstance(val, list):  # Repeating groups are also lists, so we only need one type here
+                    downspec = spec.groups[tag]
+                    expanded.append((tag, len(val)))
+                    for member in val:
+                        expanded.extend(sort_values(member, downspec))
+                else:
+                    expanded.append((tag, val))
+            return expanded
+
+        if self.spec is None:
+            #  No spec, let's just get reasonable header order, and 10 at the end.
+            tag_vals = list(msg.items())
+            tag_vals.sort(key=lambda x: HEADER_SORT_MAP.get(x[0], int(10e8 + x[0])))
+            return tag_vals
+        else:
+            return sort_values(msg, self.spec.msg_types[msg[35]])
+
+    def serialise(self, msg, separator=SEPARATOR, delimiter=DELIMITER, encoding='UTF-8'):
+        """
+        Serialise a message into a bytestring.
+
+        :param msg: the message to serialse
+        :type msg: ``dict``-like interface
+        :param delimiter: as in ``parse()``
+        :param separator: as in ``parse()``
+        :param encoding: as in ``parse()``
+        """
+        tag_vals = self._unmap(msg)
+        return '{}{}'.format(separator.join((delimiter.join((str(t), str(v))) for (t, v) in tag_vals)),
+                             separator
+                             ).encode(encoding)
