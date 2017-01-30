@@ -120,14 +120,14 @@ def len_and_chsum(msg):
     count = 0
     chsum_count = 0
     for tag, value in list(msg.items()):
-        tag, value = str(tag), str(value).encode('UTF-8')
-        if tag == '8':
+        tag, value = str(tag).encode('ascii'), str(value).encode('UTF-8')
+        if tag == b'8':
             chsum_count += STRSUM(tag)
             chsum_count += STRSUM(value)
             chsum_count += 1
             chsum_count += 61
             continue
-        if tag in ('9', '10'):
+        if tag in (b'9', b'10'):
             continue
         if isinstance(value, list):
             # repeating groups
@@ -147,5 +147,5 @@ def len_and_chsum(msg):
             chsum_count += 61  # delimiter
             # no need to add delimiter here as it is counted in the fragment
     chsum_count += 119  # <SOH>9=
-    chsum_count += STRSUM(str(count))
+    chsum_count += STRSUM(str(count).encode('ascii'))
     return count, chsum_count
