@@ -19,6 +19,9 @@ from pyfixmsg import RepeatingGroup, len_and_chsum
 
 SPEC = None
 
+if sys.version_info.major >= 3:
+  unicode = str
+
 
 @pytest.fixture
 def spec(request):
