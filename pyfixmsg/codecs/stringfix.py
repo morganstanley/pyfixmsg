@@ -1,6 +1,6 @@
 """This codec implements a simpler repeating group logic where the first tag is seen as a marker
 for repetition in a repeating group (rather than relying on the order of the tags) """
-
+import sys
 import re
 
 from collections import deque
@@ -22,6 +22,9 @@ FIX_REGEX = re.compile(FIX_REGEX_STRING.format(d=DELIMITER, s=SEPARATOR).encode(
 MICROSECONDS = 0
 MILLISECONDS = 1
 
+if sys.version_info.major >= 3:
+    unicode = str
+
 
 class Codec(object):
     """
@@ -31,14 +34,28 @@ class Codec(object):
     This class is used to transform the serialised FIX message into an instance of ``fragment_class``, default ``dict``
     Tags are assumed to be all of type ``int``, repeating groups are lists of ``fragment_class``
 
+    Values can either bytes or unicode or a mix thereof, depending on the constructor arguments.
+
     """
 
-    def __init__(self, spec=None, no_groups=False, fragment_class=dict):
+    def __init__(self, spec=None, no_groups=False, fragment_class=dict, decode_as=None, decode_all_as_347=False):
         """
         :param spec: the :py:class:`~pyfixmsg.reference.FixSpec` instance to use to parse messages.
+            If spec is not defined repeating groups will not be parsed correctly, and the logic to handle encoded
+            tags will not be functional.
         :param no_groups: set to ``True`` to ignore repeating groups
         :param fragment_class: Which dict-like object to return when parsing messages. Also sets the type of
-          members of repeating groups """
+          members of repeating groups
+        :param decode_as: what encoding to decode all tags. Defaults to None, which returns the raw byte strings.
+           setting to a non-None value makes both non-numerical tags and values to be unicode,
+           using this value for decode.
+        :param decode_all_as_347: whether to trust tag 347 to decode all other tags or only the Encoded* ones.
+          If set to False, use 347 normally for Encoded* tags, respect ``decode_as`` for all other tags. If 347 is
+          not present on the message, the values are left encoded.
+
+          """
+        self.encoding = decode_as
+        self.decode_all_as_347 = decode_all_as_347
         self.spec = spec
         if spec is None:
             self._no_groups = True
@@ -46,7 +63,7 @@ class Codec(object):
             self._no_groups = no_groups
         self._frg_class = fragment_class
 
-    def parse(self, buff, delimiter=DELIMITER, separator=SEPARATOR, encoding='UTF-8'):
+    def parse(self, buff, delimiter=DELIMITER, separator=SEPARATOR):
         """
         Parse a FIX message. The FIX message is expected to be a bytestring and the output
         is a dictionary-like object which type is determined by the ``fragment_class`` constructor argument
@@ -61,8 +78,6 @@ class Codec(object):
         :param separator: A character that separate key+value pairs inside the FIX message. Generally '\1'. See type
           observations above.
         :type separator: ``unicode``
-        :param encoding: The encoding of the buffer. Generally expected to be 'UTF-8'. Valid values as per
-        the bytestring method ``encode``.
         """
         custom_r = re.compile(FIX_REGEX_STRING.format(d=re.escape(delimiter),
                                                       s=re.escape(separator)).encode('UTF-8'),
@@ -73,8 +88,22 @@ class Codec(object):
         if not self._no_groups and self.spec is not None:
             for i in range(4):
                 if tagvals[i][0] == b'35':
-                    msg_type = self.spec.msg_types.get(tagvals[i][1].decode(encoding))
-        tagvals = ((int_or_str(tval[0]), tval[1].decode(encoding)) for tval in tagvals)
+                    msg_type = self.spec.msg_types.get(tagvals[i][1])
+
+        if self.encoding is not None:
+            tagvals = ((int_or_str(tval[0], self.encoding), tval[1].decode(self.encoding)) for tval in tagvals)
+        elif self.decode_all_as_347:
+            tagvals = [(int_or_str(tval[0]), tval[1]) for tval in tagvals]
+            encoding = None
+            for tag, val in tagvals:
+                if tag == 347:
+                    encoding = val.decode('UTF-8')
+                    break
+            if encoding is not None:
+                tagvals = ((t[0], t[1].decode(encoding)) for t in tagvals)
+        else:
+            tagvals = ((int_or_str(tval[0]), tval[1]) for tval in tagvals)
+        # TODO : add logic to parse Encoded* tags according to 347
         if self._no_groups or self.spec is None or msg_type is None:
             # no groups can be found without a spec, so no point looking up the msg type.
             return self._frg_class(tagvals)
@@ -177,7 +206,7 @@ class Codec(object):
         else:
             return sort_values(msg, self.spec.msg_types[msg[35]])
 
-    def serialise(self, msg, separator=SEPARATOR, delimiter=DELIMITER, encoding='UTF-8'):
+    def serialise(self, msg, separator=SEPARATOR, delimiter=DELIMITER, encoding=None):
         """
         Serialise a message into a bytestring.
 
@@ -188,6 +217,27 @@ class Codec(object):
         :param encoding: as in ``parse()``
         """
         tag_vals = self._unmap(msg)
-        return '{}{}'.format(separator.join((delimiter.join((str(t), str(v))) for (t, v) in tag_vals)),
-                             separator
-                             ).encode(encoding)
+        output = deque()
+        for tag, value in tag_vals:
+            if isinstance(tag, int):
+                output.append(str(tag).encode('ascii'))
+            elif isinstance(tag, bytes):
+                output.append(tag)
+            elif isinstance(tag, unicode):
+                output.append(tag.encode('ascii'))
+            else:
+                output.append(str(tag).encode('ascii'))
+            output.append(delimiter.encode('ascii'))
+            if isinstance(value, bytes):
+                output.append(value)
+            else:
+                if not isinstance(value, unicode):
+                    value = unicode(value)
+                if encoding is not None:
+                    output.append(value.encode(encoding))
+                elif self.encoding is not None:
+                    output.append(value.encode(self.encoding))
+                else:
+                    output.append(value.encode('UTF-8'))
+            output.append(separator.encode('ascii'))
+        return b"".join(output)

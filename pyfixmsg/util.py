@@ -1,16 +1,25 @@
 """Small utility-type functions"""
 
+import sys
 import datetime
 
 DATEFORMAT = '%Y%m%d-%H:%M:%S.%f'
 
+if sys.version_info.major >= 3:
+    unicode = str
 
-def int_or_str(val):
+def int_or_str(val, encoding=None):
     """ simple format to int or string if not possible """
     try:
         return int(val)
     except ValueError:
-        return str(val).strip()
+        if encoding is None:
+            if isinstance(val, bytes):
+               return val
+            return str(val)
+        elif isinstance(val, bytes):
+           return val.decode(encoding).strip()
+
 
 
 def utc_timestamp():
