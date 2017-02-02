@@ -23,7 +23,7 @@ MICROSECONDS = 0
 MILLISECONDS = 1
 
 if sys.version_info.major >= 3:
-    unicode = str
+    unicode = str  # pylint: disable=W0622,C0103
 
 
 class Codec(object):
@@ -103,7 +103,7 @@ class Codec(object):
                 tagvals = ((t[0], t[1].decode(encoding)) for t in tagvals)
         else:
             tagvals = ((int_or_str(tval[0]), tval[1]) for tval in tagvals)
-        # TODO : add logic to parse Encoded* tags according to 347
+        # Need to add logic to parse Encoded* tags according to 347
         if self._no_groups or self.spec is None or msg_type is None:
             # no groups can be found without a spec, so no point looking up the msg type.
             return self._frg_class(tagvals)
