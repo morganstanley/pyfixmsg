@@ -160,7 +160,12 @@ class FixSpec(object):
         self._eager = eager
         self.tags = None
         self._populate_tags()
-        self.msg_types = {m.msgtype: m for m in (MessageType(e, self) for e in self.tree.findall('messages/message'))}
+        self.msg_types = {m.msgtype.encode('ascii'): m for m in
+                         (MessageType(e, self) for e in self.tree.findall('messages/message'))}
+        # We need to be able to look msg type for both decoded and raw values of tag 35
+        # this is effectively noop on python 2.7
+        self.msg_types.update({m.msgtype: m for m in
+                          (MessageType(e, self) for e in self.tree.findall('messages/message'))})
         self.header_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('header/field')]
         self.tree = None
 

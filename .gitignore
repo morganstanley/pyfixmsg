@@ -1,1 +1,11 @@
 *.pyc
+
+fixspecs/FIX40.xml
+
+*.xml
+
+.cache/v/cache/lastfailed
+
+.idea/.name
+
+.idea/pyfixmsg.iml

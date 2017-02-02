@@ -6,6 +6,7 @@ import itertools
 
 if sys.version_info.major >= 3:
     STRSUM = sum
+    unicode = str
 else:
     STRSUM = lambda x: sum(bytearray(x))
 
@@ -120,7 +121,13 @@ def len_and_chsum(msg):
     count = 0
     chsum_count = 0
     for tag, value in list(msg.items()):
-        tag, value = str(tag).encode('ascii'), str(value).encode('UTF-8')
+        if not isinstance(tag, bytes):
+           tag = str(tag).encode('ascii')
+        if not isinstance(value, bytes):
+            if isinstance(value, unicode):
+                value = value.encode('UTF-8')
+            else:
+                value = str(value).encode('UTF-8')
         if tag == b'8':
             chsum_count += STRSUM(tag)
             chsum_count += STRSUM(value)
