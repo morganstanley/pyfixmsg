@@ -6,7 +6,7 @@ import itertools
 
 if sys.version_info.major >= 3:
     STRSUM = sum
-    unicode = str
+    unicode = str  # pylint: disable=W0622,C0103
 else:
     STRSUM = lambda x: sum(bytearray(x))
 
@@ -122,7 +122,7 @@ def len_and_chsum(msg):
     chsum_count = 0
     for tag, value in list(msg.items()):
         if not isinstance(tag, bytes):
-           tag = str(tag).encode('ascii')
+            tag = str(tag).encode('ascii')
         if not isinstance(value, bytes):
             if isinstance(value, unicode):
                 value = value.encode('UTF-8')
