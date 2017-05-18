@@ -8,12 +8,8 @@ This module uses xml parsing logic intensively, so we recommend having lxml (lxm
 to speed it up. It will work with the python-shipped xml module as well, although will be slower.
 """
 
-USING_LXML = False
-
 try:
-    from lxml.etree import Comment
-    from lxml.etree import parse
-    USING_LXML = True
+    from lxml.etree import Comment, parse
 except ImportError:
     from xml.etree.ElementTree import parse  # pylint: disable=C0411
 
@@ -198,7 +194,7 @@ def _extract_composition(element, spec):
             returned.append((Component(elem, spec), elem.get('required') == "Y"))
         elif elem.tag == 'group':
             returned.append((Group.from_element(elem, spec), elem.get('required') == "Y"))
-        elif USING_LXML and elem.tag == Comment:
+        elif (parse.__module__ == 'lxml.etree') and (elem.tag == Comment):
             pass
         else:
             raise ValueError("Could not process element '{}'".format(elem.tag))
