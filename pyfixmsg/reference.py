@@ -9,7 +9,7 @@ to speed it up. It will work with the python-shipped xml module as well, althoug
 """
 
 try:
-    from lxml.etree import parse
+    from lxml.etree import Comment, parse
 except ImportError:
     from xml.etree.ElementTree import parse  # pylint: disable=C0411
 
@@ -194,6 +194,8 @@ def _extract_composition(element, spec):
             returned.append((Component(elem, spec), elem.get('required') == "Y"))
         elif elem.tag == 'group':
             returned.append((Group.from_element(elem, spec), elem.get('required') == "Y"))
+        elif (parse.__module__ == 'lxml.etree') and (elem.tag == Comment):
+            pass
         else:
             raise ValueError("Could not process element '{}'".format(elem.tag))
     return returned

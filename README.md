@@ -2,7 +2,7 @@ Pyfixmsg
 ========
 
 
-``pyfixmsg``is a library for parsing, manipulating and serialising [FIX](http://www.fixtradingcommunity.org>)
+``pyfixmsg``is a library for parsing, manipulating and serialising [FIX](http://www.fixtradingcommunity.org)
 messages, primarily geared towards testing. 
 
 Objectives
