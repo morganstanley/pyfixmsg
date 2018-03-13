@@ -115,7 +115,7 @@ class RepeatingGroupFactory(object):
         return r_group
 
 
-def len_and_chsum(msg):
+def len_and_chsum(msg, group=False):
     """Calculate length and checksum. Note that the checksum is not moduloed with 256 or formatted,
     it's just the sum part of the checksum."""
     count = 0
@@ -123,7 +123,7 @@ def len_and_chsum(msg):
     for tag, value in list(msg.items()):
         if not isinstance(tag, bytes):
             tag = str(tag).encode('ascii')
-        if not isinstance(value, bytes):
+        if not isinstance(value, bytes) and not isinstance(value, RepeatingGroup):
             if isinstance(value, unicode):
                 value = value.encode('UTF-8')
             else:
@@ -136,10 +136,22 @@ def len_and_chsum(msg):
             continue
         if tag in (b'9', b'10'):
             continue
-        if isinstance(value, list):
+        # For being consistent with fixmessage.py use RepeatingGroup. Both works anyway.
+        # if isinstance(value, list):
+        if isinstance(value, RepeatingGroup):
             # repeating groups
+            g_tag = str(value.entry_tag[0]).encode('ascii')
+            g_val = str(value.entry_tag[1]).encode('UTF-8')
+            chsum_count += STRSUM(g_tag)
+            count += len(g_tag)
+            count += 1  # separator
+            chsum_count += 1  # separator
+            count += len(g_val)
+            chsum_count += STRSUM(g_val)
+            count += 1  # delimiter
+            chsum_count += 61  # delimiter
             for member in value:
-                member_len, member_chsum = len_and_chsum(member)
+                member_len, member_chsum = len_and_chsum(member, True)
                 count += member_len
                 chsum_count += member_chsum
         else:
@@ -153,6 +165,7 @@ def len_and_chsum(msg):
             count += 1  # delimiter
             chsum_count += 61  # delimiter
             # no need to add delimiter here as it is counted in the fragment
-    chsum_count += 119  # <SOH>9=
-    chsum_count += STRSUM(str(count).encode('ascii'))
+    if not group:
+        chsum_count += 119  # <SOH>9=
+        chsum_count += STRSUM(str(count).encode('ascii'))
     return count, chsum_count
