@@ -22,6 +22,11 @@ class FixFragment(dict):
     instances of the :py:class:`~pyfixmsg.FixMessage` type which inherits from this type.
     """
 
+    def __init__(self, *args, **kwargs):
+        """FixFragment constructor."""
+        super(FixFragment, self).__init__(*args, **kwargs)
+        self.typed_values = True
+
     @classmethod
     def from_dict(cls, tags_dict):
         """
@@ -223,7 +228,7 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
          """
         new_msg = self.__class__()
         new_msg.codec = self.codec
-        new_msg.load_fix(self.output_fix())
+        new_msg.from_wire(self.to_wire())
         new_msg.time = self.time
         new_msg.process = self.process
         new_msg.recipient = self.recipient
@@ -257,6 +262,7 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         self.direction = None
         self.typed_values = False
         self.codec = Codec()
+        self.tag_order = None
         super(FixMessage, self).__init__(*args, **kwargs)
 
     @property
@@ -308,7 +314,9 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         :return: A parsed fix message
         :rtype: ``FixMessage``
         """
-        self.update(self.codec.parse(string.strip(), separator=separator))
+        fix_msg = self.codec.parse(string.strip(), separator=separator)
+        self.update(fix_msg)
+        self.tag_order = getattr(fix_msg, 'tag_order', None)
         self.process = process
         return self
 
@@ -350,7 +358,12 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         """
         Human-readable representation
         """
-        return self.output_fix().decode('UTF-8')
+        out = self.output_fix()
+        try:
+            out = unicode(out).encode('UTF-8')
+        except UnicodeDecodeError:
+            pass
+        return out
 
     def calculate_checksum(self):
         """ calculates the standard fix checksum"""

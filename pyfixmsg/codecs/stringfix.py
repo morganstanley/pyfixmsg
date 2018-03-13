@@ -79,6 +79,26 @@ class Codec(object):
           observations above.
         :type separator: ``unicode``
         """
+        def pushback_generator(iterator):
+            """
+            Generator which allows to push back a previously picked item
+            for example:
+            gen = pushback_generator(range(10))
+            print next(gen)
+            print next(gen)
+            v = next(gen)
+            print v
+            gen.send(v)
+            print next(gen)
+            :param iterator:
+            :return:
+            """
+            for value in iterator:
+                back = yield value
+                if back is not None:
+                    yield back
+                    yield back
+
         custom_r = re.compile(FIX_REGEX_STRING.format(d=re.escape(delimiter),
                                                       s=re.escape(separator)).encode('UTF-8'),
                               re.DOTALL)
@@ -109,6 +129,7 @@ class Codec(object):
             return self._frg_class(tagvals)
         msg = self._frg_class()
         groups = msg_type.groups
+        tagvals = pushback_generator(tagvals)
         for tag, value in tagvals:
             if tag not in groups:
                 msg[tag] = value
@@ -118,7 +139,7 @@ class Codec(object):
                                                             group=groups[tag])
                 msg[tag] = contents
                 if last_tagval:
-                    msg[last_tagval[0]] = last_tagval[1]
+                    tagvals.send(last_tagval)
         return msg
 
     def _process_group(self, identifying_tag, enumerator, msg_type, group):
