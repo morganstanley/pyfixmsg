@@ -49,6 +49,6 @@ into an order management or a exchange/broker simulator, etc.
 
 More documentation
 ------------------
-Please see the sphinx/source directory for more documentation, and the pyfixmsg/examples.py file for 
+Read the [documentation](http://pyfixmsg.readthedocs.io/), or browse the [examples](examples/examples.py) file for 
 many examples
 
