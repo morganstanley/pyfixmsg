@@ -1,9 +1,8 @@
 Pyfixmsg
 ********
 
-
 ``pyfixmsg`` is a library for parsing, manipulating and serialising `FIX <http://www.fixtradingcommunity.org>`_
-messages, primarily geared towards testing. See the examples_.
+messages, primarily geared towards testing. See the :ref:`example <examples>`.
 
 Objectives
 -----------
@@ -48,11 +47,11 @@ into an order management or a exchange/broker simulator, etc.
 
 
 
-
-
-
 .. toctree::
    :maxdepth: 5
 
    api
    example
+
+
+
