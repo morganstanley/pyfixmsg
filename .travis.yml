@@ -1,0 +1,10 @@
+language: python
+python:
+  - "2.7"
+  - "3.4"
+# command to install dependencies
+install:
+  - curl https://raw.githubusercontent.com/quickfix/quickfix/master/spec/FIX50.xml -o FIX50.xml
+# command to run tests
+script:
+  - py.test --spec=FIX50.xml

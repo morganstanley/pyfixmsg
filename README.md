@@ -2,6 +2,7 @@ Pyfixmsg
 ========
 
 [![Documentation Status](https://readthedocs.org/projects/pyfixmsg/badge/?version=latest)](http://pyfixmsg.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/Morgan-Stanley/pyfixmsg.svg?branch=master)](https://travis-ci.org/Morgan-Stanley/pyfixmsg)
 
 ``pyfixmsg``is a library for parsing, manipulating and serialising [FIX](http://www.fixtradingcommunity.org)
 messages, primarily geared towards testing. 
