@@ -262,7 +262,11 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         self.direction = None
         self.typed_values = False
         self.codec = Codec()
-        self.tag_order = None
+        # Allows maintaining tag order if constructing msg from a FixFragment
+        if args and isinstance(args[0], FixFragment):
+            self.tag_order = getattr(args[0], 'tag_order', None)
+        else:
+            self.tag_order = None
         super(FixMessage, self).__init__(*args, **kwargs)
 
     @property
@@ -361,9 +365,9 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         out = self.output_fix()
         try:
             out = unicode(out).encode('UTF-8')
-        except UnicodeDecodeError:
+        except (UnicodeDecodeError, NameError):
             pass
-        return out
+        return str(out)
 
     def calculate_checksum(self):
         """ calculates the standard fix checksum"""

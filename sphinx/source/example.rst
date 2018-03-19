@@ -4,6 +4,6 @@
 Examples
 ********
 
-.. literalinclude:: ../../examples.py
+.. literalinclude:: ../../examples/examples.py
   :linenos:
   :language: python
