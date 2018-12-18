@@ -166,7 +166,6 @@ class FixSpec(object):
         # this is effectively noop on python 2.7
         self.msg_types.update({m.msgtype: m for m in
                           (MessageType(e, self) for e in self.tree.findall('messages/message'))})
-        self.header_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('header/field')]
         self.tree = None
 
     def _populate_tags(self):
@@ -277,10 +276,17 @@ class MessageType(object):
         assert element.tag == "message"
         self.msgtype = element.get('msgtype')
         self.name = element.get('name')
-        self.composition = _extract_composition(element, spec)
+        self.composition = self._extract_composition_including_header_trailer(element, spec)
         self.groups = {group.count_tag.tag: group for group in _get_groups(self.composition)}
         self.sorting_key = _extract_sorting_key(self.composition)
         self._spec = spec
+
+    def _extract_composition_including_header_trailer(self, element, spec):
+        """ Add standard FIX header and trailer around element composition. """
+        returned = _extract_composition(spec.tree.find('header'), spec)
+        returned = returned + _extract_composition(element, spec)
+        returned = returned + _extract_composition(spec.tree.find('trailer'), spec)
+        return returned
 
     def add_group(self, count_tag, composition, insert_at=None):
         """Add a synthetic group to this msg type.
@@ -303,7 +309,7 @@ def _extract_sorting_key(definition, sorting_key=None):
     sorting_key = sorting_key or {35: -1, 10: int(10e9)}
     for index, (item, _) in enumerate(definition):
         if isinstance(item, FixTag):
-            sorting_key[item.tag] = index
+            sorting_key[item.tag] = index if item.tag != 10 else 10e9
         elif isinstance(item, Component):
             _extract_sorting_key(item.composition, sorting_key)
         elif isinstance(item, Group):
