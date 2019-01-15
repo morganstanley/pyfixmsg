@@ -6,13 +6,12 @@ Examples illustrating the usage of FixMessage and associated objects
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import os
+import sys
 import decimal
 import argparse
-import os
 from copy import copy
 from random import randint
-
-import sys
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
@@ -32,15 +31,19 @@ def main(spec_filename):
     :param spec_filename: a specification file from Quickfix.org
     :type spec_filename: ``str``
     """
+
+    # For this example you need FIX 4.2 specification
+    # refer to: path_to_quickfix/FIX42.xml (MS: fsf/quickfix/1.14.3.1ms)
     spec = FixSpec(spec_filename)
     codec = Codec(spec=spec,  # The codec will use the given spec to find repeating groups
-                  fragment_class=FixFragment)  # the codec will produce FixFragment objects inside repeating groups
+                  fragment_class=FixFragment)  # The codec will produce FixFragment objects inside repeating groups
 
     # (default is dict). This is required for the find_all() and anywhere()
     # methods to work. It would fail with AttributeError otherwise.
 
     def fixmsg(*args, **kwargs):
-        """Factory function. This allows us to keep the dictionary __init__
+        """
+        Factory function. This allows us to keep the dictionary __init__
         arguments unchanged and force the codec to our given spec and avoid
         passing codec to serialisation and parsing methods.
 
@@ -68,7 +71,8 @@ def main(spec_filename):
     print("Price {} (note type: {}, spec defined type {})".format(
         msg[44], type(msg[44]), spec.tags.by_tag(44).type
     ))
-    check_tags = (55, 44)
+
+    check_tags = (55, 44, 27)
     for element, required in spec.msg_types[msg[35]].composition:
         if isinstance(element, FixTag) and element.tag in check_tags:
             if required:
@@ -77,13 +81,14 @@ def main(spec_filename):
                 print("{} is not required on this message type".format(element.name))
     print("Spec also allows looking up enums: {}  is {}".format(msg[54],
                                                                 spec.tags.by_tag(54).enum_by_value(msg[54])))
+
     # Although the values are stored as string there are rich operators provided that
     # allow to somewhat abstract the types
-    print("exact comparison with decimal: ", msg.tag_exact(44, decimal.Decimal("2200.75")))
-    print("exact comparing with int: ", msg.tag_exact(54, 2))
+    print("exact comparison with decimal:", msg.tag_exact(44, decimal.Decimal("2200.75")))
+    print("exact comparing with int:", msg.tag_exact(54, 2))
     print("lower than with float:", msg.tag_lt(44, 2500.0))
     print("greater than with float:", msg.tag_gt(23, 110000.1))
-    print("contains, case sensitive and insensitive", msg.tag_contains(55, "MI"), msg.tag_icontains(55, "blah"))
+    print("contains, case sensitive and insensitive:", msg.tag_contains(55, "MI"), msg.tag_icontains(55, "blah"))
 
     # Tags manipulation is as for a dictionary
     msg[56] = "ABC.1"  # There is no enforcement of what tags are used for, so changing 56 is no worry for the lib
@@ -175,7 +180,6 @@ def main(spec_filename):
     #########################
     # Sometimes it may be desirable to tweak the spec a bit, especially add a custom tag
     # or a custom repeating group.
-
 
     # Create tag
     spec.tags.add_tag(10001, "MyTagName")

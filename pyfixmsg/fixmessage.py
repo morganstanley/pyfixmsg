@@ -186,7 +186,8 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         """
         msg = cls()
         msg.codec = fix_codec
-        msg.from_wire(msg_buffer, fix_codec)
+        msg.raw_message = msg_buffer
+        msg.from_wire(msg.raw_message, fix_codec)
         return msg
 
     def __lt__(self, other):
@@ -233,6 +234,7 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         new_msg.process = self.process
         new_msg.recipient = self.recipient
         new_msg.direction = self.direction
+        new_msg.raw_message = self.raw_message
         new_msg.set_len_and_chksum()
         return new_msg
 
@@ -252,6 +254,7 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
           * ``self.recipient`` opaque value (to store for whom the message was intended)
           * ``self.direction`` Whether the message was received (``0``), sent (``1``) or unknown (``None``)
           * ``self.typed_values`` Whether the values in the message are typed. Defaults to ``False``
+          * ``self.raw_message`` If constructed by class method ``from_buffer``, keep the original format
           * ``self.codec`` Default :py:class:`~pyfixmsg.codec.stringfix.Codec` to use to parse message. Defaults
             to a naive codec that doesn't support repeating groups
         """
@@ -261,6 +264,7 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         self.recipient = ''
         self.direction = None
         self.typed_values = False
+        self.raw_message = None
         self.codec = Codec()
         # Allows maintaining tag order if constructing msg from a FixFragment
         if args and isinstance(args[0], FixFragment):
@@ -358,6 +362,12 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         self.update(codec.parse(msg))
         self.typed_values = not getattr(codec, 'decoded_values_are_untyped', False)
 
+    def get_raw_message(self):
+        """
+        Return the original string from which the fix message was constructed
+        """
+        return self.raw_message
+
     def __str__(self):
         """
         Human-readable representation
@@ -386,7 +396,7 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         Assign length and checksum based on current contents
         """
         length, raw_checksum = pyfixmsg.len_and_chsum(self)
-        self[9] = length
+        self[9] = str(length)
         self[10] = self.checksum(raw_checksum)
 
     def tag_exact(self, tag, value, case_insensitive=False):

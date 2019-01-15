@@ -1,3 +1,6 @@
+.. _api:
+
+
 API Documentation
 *****************
 
@@ -8,7 +11,6 @@ FixMessage
     :members:
     :undoc-members:
     :show-inheritance:
-
 
 .. autoclass:: pyfixmsg.fixmessage.FixFragment
     :members:
@@ -33,3 +35,18 @@ Codec
     :members:
     :undoc-members:
     :show-inheritance:
+
+FixTag
+======
+.. autoclass:: pyfixmsg.reference.FixTag
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+FixSpec
+=======
+.. autoclass:: pyfixmsg.reference.FixSpec
+    :members:
+    :undoc-members:
+    :show-inheritance:
+

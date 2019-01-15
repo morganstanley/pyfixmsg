@@ -270,6 +270,35 @@ class TestReference(object):
                      '688=2;689=2;687=AA;17807=11;10=000;'.replace(';', chr(1)).encode('UTF-8')
         assert serialised == codec.serialise(msg)
 
+    def test_empty_rgroups(self, spec):
+        codec = Codec(spec=spec, decode_as='UTF-8')
+        msg = b'35=AJ;17807=11;232=2;233=bli;234=blu;' \
+              b'233=blih;234=bluh;555=0;10=000;'
+        msg = codec.parse(msg, separator=';')
+        assert {35: 'AJ',
+                17807: '11',
+                232: [
+                    {233: 'bli', 234: 'blu'},
+                    {233: 'blih', 234: 'bluh'}
+                ],
+                555: [],
+                10: '000'
+                } == msg
+        lhs = tuple(codec._unmap(msg))
+        assert lhs == ((35, 'AJ'),
+                       (232, 2),
+                       (233, 'bli'),
+                       (234, 'blu'),
+                       (233, 'blih'),
+                       (234, 'bluh'),
+                       (555, 0),
+                       (17807, '11'),
+                       (10, '000')
+                       )
+        serialised = '35=AJ;232=2;233=bli;234=blu;233=blih;234=bluh;' \
+                     '555=0;17807=11;10=000;'.replace(';', chr(1)).encode('UTF-8')
+        assert serialised == codec.serialise(msg)
+
     def test_large_msg(self, spec, profiler):
         setup = """
 import pyfixmsg.reference as ref
@@ -565,6 +594,7 @@ class TestOperators(object):
         assert b'D' == msg[35]
         assert b'3' == msg[34]
         assert b'154' == msg[10]
+        assert msg.get_raw_message() == buff
 
     def test_pickling(self):
         a = self.FixMessage()
