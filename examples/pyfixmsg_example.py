@@ -33,7 +33,7 @@ def main(spec_filename):
     """
 
     # For this example you need FIX 4.2 specification
-    # refer to: /ms/dist/fsf/PROJ/quickfix/1.14.3.1ms/common/gcc47_64/share/quickfix/FIX42.xml
+    # refer to: path_to_quickfix/FIX42.xml (MS: fsf/quickfix/1.14.3.1ms)
     spec = FixSpec(spec_filename)
     codec = Codec(spec=spec,  # The codec will use the given spec to find repeating groups
                   fragment_class=FixFragment)  # The codec will produce FixFragment objects inside repeating groups
