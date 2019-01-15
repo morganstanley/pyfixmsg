@@ -26,6 +26,7 @@ Core classes
 ------------
  * :py:class:`~pyfixmsg.fixmessage.FixMessage`. Inherits from ``dict``. The workhorse class.
    By default comes with a codec that will parse standard-looking ``FIX``, but without support repeating groups.
+ * :py:class:`~pyfixmsg.fixmessage.RepeatingGroup`. defines repeating groups of a FixMessage.
  * :py:class:`~pyfixmsg.codecs.stringfix.Codec` defines how to parse a buffer into a FixMessage,
    and how to serialise it back
  * :py:class:`~pyfixmsg.reference.FixSpec` defines the ``FIX`` specification to follow. Only required for support of repeating group. Defined from

@@ -3,6 +3,7 @@ import os
 
 # Add script/lib for internal
 sys.path.append('../../script/lib')
+
 # Add ../.. for readthedocs
 sys.path.insert(0, os.path.join(
   os.path.dirname(os.path.abspath(__file__)),

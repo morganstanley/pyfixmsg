@@ -134,12 +134,15 @@ class Codec(object):
             if tag not in groups:
                 msg[tag] = value
             else:
-                contents, last_tagval = self._process_group(tag, tagvals,
-                                                            msg_type=msg_type,
-                                                            group=groups[tag])
-                msg[tag] = contents
-                if last_tagval:
-                    tagvals.send(last_tagval)
+                if value == '0':
+                    msg[tag] = RepeatingGroup.create_repeating_group(tag)
+                else:
+                    contents, last_tagval = self._process_group(tag, tagvals,
+                                                               msg_type=msg_type,
+                                                               group=groups[tag])
+                    msg[tag] = contents
+                    if last_tagval:
+                        tagvals.send(last_tagval)
         return msg
 
     def _process_group(self, identifying_tag, enumerator, msg_type, group):

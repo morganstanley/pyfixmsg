@@ -4,6 +4,6 @@
 Examples
 ********
 
-.. literalinclude:: ../../examples/examples.py
+.. literalinclude:: ../../examples/pyfixmsg_example.py
   :linenos:
   :language: python
