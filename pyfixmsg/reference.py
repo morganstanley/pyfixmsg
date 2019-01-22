@@ -166,6 +166,7 @@ class FixSpec(object):
         # this is effectively noop on python 2.7
         self.msg_types.update({m.msgtype: m for m in
                           (MessageType(e, self) for e in self.tree.findall('messages/message'))})
+        self.header_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('header/field')]
         self.tree = None
 
     def _populate_tags(self):
