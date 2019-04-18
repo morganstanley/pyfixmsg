@@ -594,6 +594,7 @@ class TestOperators(object):
         assert b'D' == msg[35]
         assert b'3' == msg[34]
         assert b'154' == msg[10]
+        assert msg.get_raw_message() == buff
 
     def test_pickling(self):
         a = self.FixMessage()
