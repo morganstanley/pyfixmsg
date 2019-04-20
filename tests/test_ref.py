@@ -235,6 +235,9 @@ class TestReference(object):
         assert serialised == codec.serialise(msg)
 
     def test_nested_rgroup(self, spec):
+        if 'FIX.4.4' not in spec.version and 'FIX5.' not in spec.version:
+            # only relevant for fix 4.4 or above
+            return
         codec = Codec(spec=spec, decode_as='UTF-8')
         msg = b'35=AE;555=1;687=AA;683=2;688=1;689=1;' \
               b'688=2;689=2;17807=11;10=000;'
@@ -271,6 +274,9 @@ class TestReference(object):
         assert serialised == codec.serialise(msg)
 
     def test_empty_rgroups(self, spec):
+        if 'FIX.4.4' not in spec.version and 'FIX5.' not in spec.version:
+            # only relevant for fix 4.4 or above
+            return
         codec = Codec(spec=spec, decode_as='UTF-8')
         msg = b'35=AJ;17807=11;232=2;233=bli;234=blu;' \
               b'233=blih;234=bluh;555=0;10=000;'
@@ -650,3 +656,12 @@ class TestOperators(object):
         with pytest.raises(KeyError):
             after[270]
         assert list(after.find_all(270)) == [[268, 0, 270], [268, 1, 270]]
+
+    def test_serialisation_header(self, spec):
+        if 'FIX5' in spec.version:
+            msg = self.FixMessage()
+            msg.codec = Codec(spec=spec)
+            msg.load_fix(b'8=FIX.4.2;9=97;35=B;215=1;216=1;146=2;55=EURUSD;55=EURGBP;10=000;')
+            assert msg.output_fix() == b'8=FIX.4.2;9=43;35=B;215=1;216=1;146=2;55=EURUSD;55=EURGBP;10=236;'
+            msg = self.FixMessage({56:'B', 34:12, 10:100, 9:4, 35:8, 8:'FIX4.4'})
+            assert msg.output_fix() == b'8=FIX4.4;9=16;35=8;56=B;34=12;10=162;'

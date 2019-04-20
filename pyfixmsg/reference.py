@@ -6,6 +6,10 @@ the spec according to one's requirements.
 
 This module uses xml parsing logic intensively, so we recommend having lxml (lxml.de) installed
 to speed it up. It will work with the python-shipped xml module as well, although will be slower.
+
+Note::
+   this module doesn't (yet) support hops as part of a message header (in FIX4.4 onwards)
+
 """
 
 try:
@@ -14,8 +18,9 @@ except ImportError:
     from xml.etree.ElementTree import Comment, parse  # pylint: disable=C0411
 
 # FIX50 onwards don't define the header. We still need something to order the tags if
-# they end up on messages, so we'll use this instead
-HEADER_TAGS = [8, 9, 35, 49, 56, 115, 128, 90, 91, 34, 50, 142, 57, 143, 116, 144, 129, 145,
+# they end up on messages, so we'll use this instead. This doesn't support the Hops component
+# for simplicity's sake for now.
+HEADER_TAGS = [8, 9, 35, 1128, 1156, 1129, 49, 56, 115, 128, 90, 91, 34, 50, 142, 57, 143, 116, 144, 129, 145,
                43, 97, 52, 122, 212, 213, 347, 369, 370]
 HEADER_SORT_MAP = {t: i for i, t in enumerate(HEADER_TAGS)}
 HEADER_SORT_MAP[10] = int(1e9)
@@ -146,6 +151,7 @@ class FixSpec(object):
     It contains the Message Types supported by the specification, as a map (FixSpec.msg_types) of
     message type value ('D', '6', '8', etc..) to MessageType class, and all the fields supported
     in the spec as a TagReference instance (FixSpec.tags) which can be accessed by tag name or number.
+
     """
 
     def __init__(self, xml_file, eager=False):
@@ -157,6 +163,9 @@ class FixSpec(object):
         """
         self.source = xml_file
         self.tree = parse(xml_file).getroot()
+        major = self.tree.get('major')
+        minor = self.tree.get('minor')
+        self.version = "FIX{}.{}".format(major, minor)
         self._eager = eager
         self.tags = None
         self._populate_tags()
@@ -322,8 +331,9 @@ def _extract_sorting_key(definition, spec, sorting_key=None, index=0):
     """
     if sorting_key is None:
         sorting_key = {35: -1, 10: int(10e9)}
-        for index, item in enumerate(spec.header_tags):
-            sorting_key[item.tag] = index
+        header_tags = spec.header_tags or HEADER_TAGS
+        for index, item in enumerate(header_tags):
+            sorting_key[item] = index
     start_index = index + 1
     for index, (item, _) in enumerate(definition):
         if isinstance(item, FixTag):
