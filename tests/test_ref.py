@@ -658,10 +658,9 @@ class TestOperators(object):
         assert list(after.find_all(270)) == [[268, 0, 270], [268, 1, 270]]
 
     def test_serialisation_header(self, spec):
-        if 'FIX5' in spec.version:
-            msg = self.FixMessage()
-            msg.codec = Codec(spec=spec)
-            msg.load_fix(b'8=FIX.4.2;9=97;35=B;215=1;216=1;146=2;55=EURUSD;55=EURGBP;10=000;')
-            assert msg.output_fix() == b'8=FIX.4.2;9=43;35=B;215=1;216=1;146=2;55=EURUSD;55=EURGBP;10=236;'
-            msg = self.FixMessage({56:'B', 34:12, 10:100, 9:4, 35:8, 8:'FIX4.4'})
-            assert msg.output_fix() == b'8=FIX4.4;9=16;35=8;56=B;34=12;10=162;'
+        msg = self.FixMessage()
+        msg.codec = Codec(spec=spec)
+        msg.load_fix(b'8=FIX.4.2;9=97;35=B;215=1;216=1;146=2;55=EURUSD;55=EURGBP;10=000;')
+        assert msg.output_fix() == b'8=FIX.4.2;9=43;35=B;215=1;216=1;146=2;55=EURUSD;55=EURGBP;10=236;'
+        msg = self.FixMessage({56:'B', 34:12, 10:100, 9:4, 35:8, 8:'FIX4.4'})
+        assert msg.output_fix() == b'8=FIX4.4;9=16;35=8;56=B;34=12;10=162;'
