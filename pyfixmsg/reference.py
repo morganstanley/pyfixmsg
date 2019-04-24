@@ -175,7 +175,7 @@ class FixSpec(object):
         # this is effectively noop on python 2.7
         self.msg_types.update({m.msgtype: m for m in
                                (MessageType(e, self) for e in self.tree.findall('messages/message'))})
-        self.header_tags = [self.tags.by_name(t.get('name')).tag for t in self.tree.findall('header/field')]
+        self.header_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('header/field')]
         self.tree = None
 
     def _populate_tags(self):
@@ -333,7 +333,10 @@ def _extract_sorting_key(definition, spec, sorting_key=None, index=0):
         sorting_key = {35: -1, 10: int(10e9)}
         header_tags = spec.header_tags or HEADER_TAGS
         for index, item in enumerate(header_tags):
-            sorting_key[item] = index
+            if isinstance(item, FixTag):
+                sorting_key[item.tag] = index
+            else:
+                sorting_key[item] = index
     start_index = index + 1
     for index, (item, _) in enumerate(definition):
         if isinstance(item, FixTag):
