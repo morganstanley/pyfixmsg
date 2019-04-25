@@ -6,16 +6,21 @@ the spec according to one's requirements.
 
 This module uses xml parsing logic intensively, so we recommend having lxml (lxml.de) installed
 to speed it up. It will work with the python-shipped xml module as well, although will be slower.
+
+Note::
+   this module doesn't (yet) support hops as part of a message header (in FIX4.4 onwards)
+
 """
 
 try:
     from lxml.etree import Comment, parse
 except ImportError:
-    from xml.etree.ElementTree import parse  # pylint: disable=C0411
+    from xml.etree.ElementTree import Comment, parse  # pylint: disable=C0411
 
 # FIX50 onwards don't define the header. We still need something to order the tags if
-# they end up on messages, so we'll use this instead
-HEADER_TAGS = [8, 9, 35, 49, 56, 115, 128, 90, 91, 34, 50, 142, 57, 143, 116, 144, 129, 145,
+# they end up on messages, so we'll use this instead. This doesn't support the Hops component
+# for simplicity's sake for now.
+HEADER_TAGS = [8, 9, 35, 1128, 1156, 1129, 49, 56, 115, 128, 90, 91, 34, 50, 142, 57, 143, 116, 144, 129, 145,
                43, 97, 52, 122, 212, 213, 347, 369, 370]
 HEADER_SORT_MAP = {t: i for i, t in enumerate(HEADER_TAGS)}
 HEADER_SORT_MAP[10] = int(1e9)
@@ -36,7 +41,7 @@ class FixTag(object):
         :param tagtype: Type as in quickfix's XML reference documents
         :type tagtype: ``str``
         :param values:  The valid enum values
-        :type value: ``tuple((str, str))``  with the first element of each tuple being the value of the enum,
+        :type values: ``tuple((str, str))``  with the first element of each tuple being the value of the enum,
           the second the name of the value.
         """
         self.name = name
@@ -140,12 +145,13 @@ class TagsReference(object):
 
 class FixSpec(object):
     """
-    A python-friendly representation of a FIX sepc.
+    A python-friendly representation of a FIX spec.
     This class is built from an XML file sourced from Quickfix (http://www.quickfixengine.org/).
 
     It contains the Message Types supported by the specification, as a map (FixSpec.msg_types) of
     message type value ('D', '6', '8', etc..) to MessageType class, and all the fields supported
     in the spec as a TagReference instance (FixSpec.tags) which can be accessed by tag name or number.
+
     """
 
     def __init__(self, xml_file, eager=False):
@@ -157,15 +163,18 @@ class FixSpec(object):
         """
         self.source = xml_file
         self.tree = parse(xml_file).getroot()
+        major = self.tree.get('major')
+        minor = self.tree.get('minor')
+        self.version = "FIX{}.{}".format(major, minor)
         self._eager = eager
         self.tags = None
         self._populate_tags()
         self.msg_types = {m.msgtype.encode('ascii'): m for m in
-                         (MessageType(e, self) for e in self.tree.findall('messages/message'))}
+                          (MessageType(e, self) for e in self.tree.findall('messages/message'))}
         # We need to be able to look msg type for both decoded and raw values of tag 35
         # this is effectively noop on python 2.7
         self.msg_types.update({m.msgtype: m for m in
-                          (MessageType(e, self) for e in self.tree.findall('messages/message'))})
+                               (MessageType(e, self) for e in self.tree.findall('messages/message'))})
         self.header_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('header/field')]
         self.tree = None
 
@@ -186,7 +195,7 @@ def _extract_composition(element, spec):
     Parse XML spec to extract the composition of a nested structure (Component, Group or MsgType)
     """
     returned = []
-    for elem in element.getchildren():
+    for elem in list(element):
         if elem.tag == "field":
             returned.append((spec.tags.by_name(elem.get('name')),
                              elem.get('required') == "Y"))
@@ -218,7 +227,7 @@ class Group(object):
 
     def __init__(self, count_tag, composition, spec):
         """
-        :param name: Name for the repeating group. Must correspond to the tag name for its count
+        :param count_tag: Name for the repeating group. Must correspond to the tag name for its count
           tag in the spec.
         :param spec: the (partially populated) specification, containing at least the components
         and tags.
@@ -229,12 +238,19 @@ class Group(object):
         self.name = count_tag.name
         self.tags = set(t[0].tag for t in self.composition if isinstance(t[0], FixTag))
         self.groups = {group.count_tag.tag: group for group in _get_groups(self.composition)}
-        self.sorting_key = _extract_sorting_key(self.composition)
+        self._sorting_key = None
         self._spec = spec
+
+    @property
+    def sorting_key(self):
+        if not self._sorting_key:
+            self._sorting_key = _extract_sorting_key(self.composition, self._spec)
+        return self._sorting_key
 
     @classmethod
     def from_element(cls, element, spec):
         """Build the group from an lxml etree element
+        :param spec: a :py:class:`FixSpec` describing the element
         :param element: the xml element representing the group
         :type element: ``etree.Element``
         """
@@ -258,7 +274,14 @@ class Component(object):
         self.name = element.get('name')
         elem = spec.tree.findall("components/component[@name='{}']".format(self.name))[0]
         self.composition = _extract_composition(elem, spec)
-        self.sorting_key = _extract_sorting_key(self.composition)
+        self._sorting_key = None
+        self._spec = spec
+
+    @property
+    def sorting_key(self):
+        if not self._sorting_key:
+            self._sorting_key = _extract_sorting_key(self.composition, self._spec)
+        return self._sorting_key
 
 
 class MessageType(object):
@@ -279,8 +302,14 @@ class MessageType(object):
         self.name = element.get('name')
         self.composition = _extract_composition(element, spec)
         self.groups = {group.count_tag.tag: group for group in _get_groups(self.composition)}
-        self.sorting_key = _extract_sorting_key(self.composition)
+        self._sorting_key = None
         self._spec = spec
+
+    @property
+    def sorting_key(self):
+        if not self._sorting_key:
+            self._sorting_key = _extract_sorting_key(self.composition, self._spec)
+        return self._sorting_key
 
     def add_group(self, count_tag, composition, insert_at=None):
         """Add a synthetic group to this msg type.
@@ -292,7 +321,7 @@ class MessageType(object):
             # Will sort by tag number after the sorted tags otherwise
 
 
-def _extract_sorting_key(definition, sorting_key=None):
+def _extract_sorting_key(definition, spec, sorting_key=None, index=0):
     """
     Retrieve the sorting key for an object.
     The sorting key is used to serialise tags in the order they appear in the spec.
@@ -300,12 +329,20 @@ def _extract_sorting_key(definition, sorting_key=None):
     but it is essential in repeating groups. This takes the safe approach of enforcing it at all
     levels.
     """
-    sorting_key = sorting_key or {35: -1, 10: int(10e9)}
+    if sorting_key is None:
+        sorting_key = {35: -1, 10: int(10e9)}
+        header_tags = spec.header_tags or HEADER_TAGS
+        for index, item in enumerate(header_tags):
+            if isinstance(item, FixTag):
+                sorting_key[item.tag] = index
+            else:
+                sorting_key[item] = index
+    start_index = index + 1
     for index, (item, _) in enumerate(definition):
         if isinstance(item, FixTag):
-            sorting_key[item.tag] = index
+            sorting_key[item.tag] = index + start_index
         elif isinstance(item, Component):
-            _extract_sorting_key(item.composition, sorting_key)
+            _extract_sorting_key(item.composition, spec, sorting_key, index=index + start_index)
         elif isinstance(item, Group):
-            sorting_key[item.count_tag.tag] = index
+            sorting_key[item.count_tag.tag] = index + start_index
     return sorting_key
