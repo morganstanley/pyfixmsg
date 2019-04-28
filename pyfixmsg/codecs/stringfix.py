@@ -124,6 +124,7 @@ class Codec(object):
         else:
             tagvals = ((int_or_str(tval[0]), tval[1]) for tval in tagvals)
         # Need to add logic to parse Encoded* tags according to 347
+
         if self._no_groups or self.spec is None or msg_type is None:
             # no groups can be found without a spec, so no point looking up the msg type.
             return self._frg_class(tagvals)
@@ -138,8 +139,8 @@ class Codec(object):
                     msg[tag] = RepeatingGroup.create_repeating_group(tag)
                 else:
                     contents, last_tagval = self._process_group(tag, tagvals,
-                                                               msg_type=msg_type,
-                                                               group=groups[tag])
+                                                                msg_type=msg_type,
+                                                                group=groups[tag])
                     msg[tag] = contents
                     if last_tagval:
                         tagvals.send(last_tagval)
@@ -208,7 +209,7 @@ class Codec(object):
         def sort_values(msg, spec):
             """ Sort {tag:value} map into an iterable  """
             tvals = list(msg.items())
-            get_sorting_key = lambda x: spec.sorting_key.get(x[0], int(10e8 + x[0]))
+            get_sorting_key = lambda x: spec.sorting_key.get(x[0], int(1e9 + x[0]))
             tvals.sort(key=get_sorting_key)
             #  using a deque for this already-sorted data structure yields a ~10% speed improvement on serialisation
             expanded = deque()
@@ -225,7 +226,7 @@ class Codec(object):
         if self.spec is None:
             #  No spec, let's just get reasonable header order, and 10 at the end.
             tag_vals = list(msg.items())
-            tag_vals.sort(key=lambda x: HEADER_SORT_MAP.get(x[0], int(10e8 + x[0])))
+            tag_vals.sort(key=lambda x: HEADER_SORT_MAP.get(x[0], int(1e9 + x[0])))
             return tag_vals
         else:
             return sort_values(msg, self.spec.msg_types[msg[35]])
@@ -238,7 +239,8 @@ class Codec(object):
         :type msg: ``dict``-like interface
         :param delimiter: as in ``parse()``
         :param separator: as in ``parse()``
-        :param encoding: as in ``parse()``
+        :param encoding: encoding mode
+        :type encoding: ``str``
         """
         tag_vals = self._unmap(msg)
         output = deque()

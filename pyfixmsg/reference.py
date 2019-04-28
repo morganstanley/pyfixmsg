@@ -17,19 +17,20 @@ try:
 except ImportError:
     from xml.etree.ElementTree import Comment, parse  # pylint: disable=C0411
 
-# FIX50 onwards don't define the header. We still need something to order the tags if
+# FIX50 onwards don't define the header & trailer. We still need something to order the tags if
 # they end up on messages, so we'll use this instead. This doesn't support the Hops component
 # for simplicity's sake for now.
-HEADER_TAGS = [8, 9, 35, 1128, 1156, 1129, 49, 56, 115, 128, 90, 91, 34, 50, 142, 57, 143, 116, 144, 129, 145,
-               43, 97, 52, 122, 212, 213, 347, 369, 370]
+HEADER_TAGS = [8, 9, 35, 1128, 1156, 1129, 49, 56, 115, 128,
+               90, 91, 34, 50, 142, 57, 143, 116, 144, 129, 145,
+               43, 97, 52, 122, 212, 213, 347, 369, 370, 1128, 1129]
+TRAILER_TAGS = [93, 89, 10]
 HEADER_SORT_MAP = {t: i for i, t in enumerate(HEADER_TAGS)}
-HEADER_SORT_MAP[10] = int(1e9)
+HEADER_SORT_MAP.update({10: int(10e9), 89: int(10e9-1), 93: int(10e9-2)})
 
 
 class FixTag(object):
     """
     Fix tag representation. A fix tag has name, tag (number), type and valid values (enum)
-
     """
 
     def __init__(self, name, tag, tagtype=None, values=tuple()):
@@ -151,7 +152,6 @@ class FixSpec(object):
     It contains the Message Types supported by the specification, as a map (FixSpec.msg_types) of
     message type value ('D', '6', '8', etc..) to MessageType class, and all the fields supported
     in the spec as a TagReference instance (FixSpec.tags) which can be accessed by tag name or number.
-
     """
 
     def __init__(self, xml_file, eager=False):
@@ -176,6 +176,7 @@ class FixSpec(object):
         self.msg_types.update({m.msgtype: m for m in
                                (MessageType(e, self) for e in self.tree.findall('messages/message'))})
         self.header_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('header/field')]
+        self.trailer_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('trailer/field')]
         self.tree = None
 
     def _populate_tags(self):
@@ -227,10 +228,13 @@ class Group(object):
 
     def __init__(self, count_tag, composition, spec):
         """
-        :param count_tag: Name for the repeating group. Must correspond to the tag name for its count
-          tag in the spec.
+        :param count_tag: A FixTag object representing a repeating group. Must correspond
+          to the tag name for its count tag in the spec.
+        :type count_tag: ``FixTag``
+        :param composition: the xml elements representing a fix tag, a component or a group
+        :type composition: ``list`` of ``etree.Element``
         :param spec: the (partially populated) specification, containing at least the components
-        and tags.
+          and tags.
         :type spec: ``FixSpec``
         """
         self.composition = composition
@@ -250,9 +254,10 @@ class Group(object):
     @classmethod
     def from_element(cls, element, spec):
         """Build the group from an lxml etree element
-        :param spec: a :py:class:`FixSpec` describing the element
         :param element: the xml element representing the group
         :type element: ``etree.Element``
+        :param spec: a :py:class:`FixSpec` describing the element
+        :type spec: ``FixSpec``
         """
         return cls(count_tag=spec.tags.by_name(element.get('name')),
                    composition=_extract_composition(element, spec), spec=spec)
@@ -271,6 +276,12 @@ class Component(object):
     """Representation of the specification of a Component"""
 
     def __init__(self, element, spec):
+        """
+        :param element: the xml element representing a component
+        :type element: ``etree.Element``
+        :param spec: the (partially populated) specification, containing at least the groups
+          and tags
+        """
         self.name = element.get('name')
         elem = spec.tree.findall("components/component[@name='{}']".format(self.name))[0]
         self.composition = _extract_composition(elem, spec)
@@ -292,7 +303,7 @@ class MessageType(object):
 
     def __init__(self, element, spec):
         """
-        :param element: the xml element representing the group
+        :param element: the xml element representing a message type
         :type element: ``etree.Element``
         :param spec: the (partially populated) specification, containing at least the tags.
         :type spec: ``FixSpec``
@@ -330,13 +341,14 @@ def _extract_sorting_key(definition, spec, sorting_key=None, index=0):
     levels.
     """
     if sorting_key is None:
-        sorting_key = {35: -1, 10: int(10e9)}
-        header_tags = spec.header_tags or HEADER_TAGS
+        sorting_key = {35: 0, 10: int(10e9)}
+        trailer_tags = [item.tag for item in spec.trailer_tags] or TRAILER_TAGS
+        for index, item in enumerate(trailer_tags[::-1]):
+            sorting_key[item] = 10e9 - index
+        header_tags = [item.tag for item in spec.header_tags] or HEADER_TAGS
         for index, item in enumerate(header_tags):
-            if isinstance(item, FixTag):
-                sorting_key[item.tag] = index
-            else:
-                sorting_key[item] = index
+            sorting_key[item] = index
+
     start_index = index + 1
     for index, (item, _) in enumerate(definition):
         if isinstance(item, FixTag):
@@ -345,4 +357,5 @@ def _extract_sorting_key(definition, spec, sorting_key=None, index=0):
             _extract_sorting_key(item.composition, spec, sorting_key, index=index + start_index)
         elif isinstance(item, Group):
             sorting_key[item.count_tag.tag] = index + start_index
+
     return sorting_key
