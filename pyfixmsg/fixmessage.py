@@ -226,7 +226,7 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         """
         copy module support. This copies the message by serialising it and parsing the serialised
         data back into a new message. This is a lot faster than deepcopy or other techniques.
-         """
+        """
         new_msg = self.__class__()
         new_msg.codec = self.codec
         new_msg.from_wire(self.to_wire())
@@ -287,7 +287,6 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         """
         Sets the tag if value is neither None or the empty string. Deletes the tag otherwise.
         Only works on top-level tags (not inside repeating groups)
-
         """
         if value is not None and value != "":  # don't remove if the tag is 0
             self[tag] = value
