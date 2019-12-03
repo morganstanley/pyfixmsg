@@ -6,8 +6,11 @@ import decimal
 import warnings
 import datetime
 
+import six
+
 import pyfixmsg
 from pyfixmsg.codecs.stringfix import Codec
+from pyfixmsg.util import native_str
 
 TAGS_AS_DATE = (432, 7509, 52)
 GTD_EXPIRE_DATE_TAG = 432
@@ -154,22 +157,6 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
 
     # Class type of FIX message fragments
     FragmentType = FixFragment
-
-    @classmethod
-    def from_dict(cls, tags_dict):
-        """
-        Create a FixMessage from a dictionary.
-
-        :param tags_dict: dictionary of FIX tags to values
-        :type tags_dict: ``dict`` of ``int`` to ``str``
-                         or ``int`` or ``float`` or ``long``
-
-        :return: a FixMessage object
-        :rtype: ``FixMessage``
-        """
-        msg = cls()
-        msg.update(tags_dict)
-        return msg
 
     @classmethod
     def from_buffer(cls, msg_buffer, fix_codec):
@@ -373,10 +360,10 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         """
         out = self.output_fix()
         try:
-            out = unicode(out).encode('UTF-8')
+            out = six.ensure_text(out).encode('UTF-8')
         except (UnicodeDecodeError, NameError):
             pass
-        return str(out)
+        return six.ensure_str(out)
 
     def calculate_checksum(self):
         """ calculates the standard fix checksum"""
@@ -400,9 +387,9 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
 
     def tag_exact(self, tag, value, case_insensitive=False):
         """ Returns True if self[tag] has the exact value. Returns False if the tag doesnt exist or is not exact """
-        value = str(value)
+        value = native_str(value)
         try:
-            mine = str(self[tag])
+            mine = native_str(self[tag])
         except KeyError:
             return False
         if case_insensitive:
@@ -418,9 +405,9 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
     def tag_contains(self, tag, value, case_insensitive=False):
         """ Returns True if self[tag] contains value. Returns False otherwise, or if the tag doesnt exist
         This is a string string comparison"""
-        value = str(value)
+        value = native_str(value)
         try:
-            mine = str(self[tag])
+            mine = native_str(self[tag])
         except KeyError:
             return False
         if case_insensitive:
@@ -438,9 +425,9 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
 
     def tag_match_regex(self, tag, regex):
         """ returns True of self[tag] matches regex, false otherwise or if the tag doesnt exist """
-        regex = str(regex)
+        regex = native_str(regex)
         try:
-            if re.match(regex, str(self[tag])):
+            if re.match(regex, native_str(self[tag])):
                 return True
         except KeyError:
             pass
@@ -452,7 +439,8 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
             return False
         if not value:
             return False
-        tag = self.get(tag)
+        tag = native_str(self.get(tag))
+        value = native_str(value)
         try:
             tag = decimal.Decimal(tag)
             value = decimal.Decimal(value)
@@ -466,7 +454,8 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
             return False
         if not value:
             return False
-        tag = self.get(tag)
+        tag = native_str(self.get(tag))
+        value = native_str(value)
         try:
             tag = decimal.Decimal(tag)
             value = decimal.Decimal(value)
@@ -480,7 +469,8 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
             return False
         if not value:
             return False
-        tag = self.get(tag)
+        tag = native_str(self.get(tag))
+        value = native_str(value)
         try:
             tag = decimal.Decimal(tag)
             value = decimal.Decimal(value)
@@ -494,7 +484,8 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
             return False
         if not value:
             return False
-        tag = self.get(tag)
+        tag = native_str(self.get(tag))
+        value = native_str(value)
         try:
             tag = decimal.Decimal(tag)
             value = decimal.Decimal(value)
@@ -504,9 +495,11 @@ class FixMessage(FixFragment):  # pylint: disable=R0904
         return tag >= value
 
     def tag_in(self, tag, values):
-        """ returns True of self[tag] is in values, false otherwise or if the tag doesnt exist """
-        values = [str(i) for i in values]
-        return str(self.get(tag, None)) in values
+        """ returns True if self[tag] is in values, false otherwise or if the tag doesnt exist """
+        if not self.get(tag):
+            return False
+        values = [native_str(i) for i in values]
+        return native_str(self.get(tag, None)) in values
 
     def update_all(self, tag, value):
         """ this will force a tag (that already exists!) to a value at all appearances """

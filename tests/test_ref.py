@@ -1,5 +1,4 @@
 from __future__ import print_function
-from __future__ import unicode_literals
 
 import pickle
 from timeit import timeit
@@ -8,6 +7,7 @@ import time
 import sys
 import os
 
+import six
 import pytest
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -18,9 +18,6 @@ from pyfixmsg.fixmessage import FixMessage, FixFragment
 from pyfixmsg import RepeatingGroup, len_and_chsum
 
 SPEC = None
-
-if sys.version_info.major >= 3:
-    unicode = str
 
 
 @pytest.fixture
@@ -75,6 +72,27 @@ class TestReference(object):
         msg = (b'8=FIX.4.2;35=D;49=BLA;56=BLA;57=DEST;143=LN;11=eleven;18=1;21=2;54=2;40=2;59=0;55=PROD;'
                b'38=10;44=1;52=20110215-02:20:52.675;10=000;')
         res = codec.parse(msg, separator=';')
+        assert {8: u'FIX.4.2',
+                11: u'eleven',
+                18: u'1',
+                21: u'2',
+                35: u'D',
+                38: u'10',
+                40: u'2',
+                44: u'1',
+                49: u'BLA',
+                52: u'20110215-02:20:52.675',
+                54: u'2',
+                55: u'PROD',
+                56: u'BLA',
+                57: u'DEST',
+                59: u'0',
+                10: u'000',
+                143: u'LN'} == res
+        codec = Codec(spec=spec)
+        msg = (b'8=FIX.4.2;35=D;49=BLA;56=BLA;57=DEST;143=LN;11=eleven;18=1;21=2;54=2;40=2;59=0;55=PROD;'
+               b'38=10;44=1;52=20110215-02:20:52.675;10=000;')
+        res = codec.parse(msg, separator=';')
         assert {8: 'FIX.4.2',
                 11: 'eleven',
                 18: '1',
@@ -92,49 +110,7 @@ class TestReference(object):
                 59: '0',
                 10: '000',
                 143: 'LN'} == res
-        codec = Codec(spec=spec)
-        msg = (b'8=FIX.4.2;35=D;49=BLA;56=BLA;57=DEST;143=LN;11=eleven;18=1;21=2;54=2;40=2;59=0;55=PROD;'
-               b'38=10;44=1;52=20110215-02:20:52.675;10=000;')
-        res = codec.parse(msg, separator=';')
-        assert {8: b'FIX.4.2',
-                11: b'eleven',
-                18: b'1',
-                21: b'2',
-                35: b'D',
-                38: b'10',
-                40: b'2',
-                44: b'1',
-                49: b'BLA',
-                52: b'20110215-02:20:52.675',
-                54: b'2',
-                55: b'PROD',
-                56: b'BLA',
-                57: b'DEST',
-                59: b'0',
-                10: b'000',
-                143: b'LN'} == res
 
-        codec = Codec(spec=spec, decode_all_as_347=True)
-        res = codec.parse(msg, separator=';')
-        assert {8: b'FIX.4.2',
-                11: b'eleven',
-                18: b'1',
-                21: b'2',
-                35: b'D',
-                38: b'10',
-                40: b'2',
-                44: b'1',
-                49: b'BLA',
-                52: b'20110215-02:20:52.675',
-                54: b'2',
-                55: b'PROD',
-                56: b'BLA',
-                57: b'DEST',
-                59: b'0',
-                10: b'000',
-                143: b'LN'} == res
-        msg = (b'8=FIX.4.2;35=D;49=BLA;56=BLA;57=DEST;347=UTF-8;143=LN;11=eleven;18=1;21=2;54=2;40=2;59=0;55=PROD;'
-               b'38=10;44=1;52=20110215-02:20:52.675;10=000;')
         codec = Codec(spec=spec, decode_all_as_347=True)
         res = codec.parse(msg, separator=';')
         assert {8: 'FIX.4.2',
@@ -153,8 +129,29 @@ class TestReference(object):
                 57: 'DEST',
                 59: '0',
                 10: '000',
-                143: 'LN',
-                347: 'UTF-8'} == res
+                143: 'LN'} == res
+        msg = (b'8=FIX.4.2;35=D;49=BLA;56=BLA;57=DEST;347=UTF-8;143=LN;11=eleven;18=1;21=2;54=2;40=2;59=0;55=PROD;'
+               b'38=10;44=1;52=20110215-02:20:52.675;10=000;')
+        codec = Codec(spec=spec, decode_all_as_347=True)
+        res = codec.parse(msg, separator=';')
+        assert {8: u'FIX.4.2',
+                11: u'eleven',
+                18: u'1',
+                21: u'2',
+                35: u'D',
+                38: u'10',
+                40: u'2',
+                44: u'1',
+                49: u'BLA',
+                52: u'20110215-02:20:52.675',
+                54: u'2',
+                55: u'PROD',
+                56: u'BLA',
+                57: u'DEST',
+                59: u'0',
+                10: u'000',
+                143: u'LN',
+                347: u'UTF-8'} == res
         msg = (b'8=FIX.4.2;35=8;49=BLA;56=BLA;57=DEST;143=LN;11=eleven;18=1;21=2;54=2;40=2;59=0;55=PROD;'
                b'38=10;44=1;52=20110215-02:20:52.675;'
                b'382=2;'
@@ -163,25 +160,25 @@ class TestReference(object):
                b'10=000;')
         codec = Codec(spec=spec)
         res = codec.parse(msg, separator=';')
-        assert {8: b'FIX.4.2',
-                11: b'eleven',
-                382: [dict(((375, b'A'), (337, b'B'))),
-                      dict(((375, b'B'), (437, b'B')))],
-                18: b'1',
-                21: b'2',
-                35: b'8',
-                38: b'10',
-                40: b'2',
-                44: b'1',
-                49: b'BLA',
-                52: b'20110215-02:20:52.675',
-                54: b'2',
-                55: b'PROD',
-                56: b'BLA',
-                57: b'DEST',
-                59: b'0',
-                143: b'LN',
-                10: b'000'} == res
+        assert {8: 'FIX.4.2',
+                11: 'eleven',
+                382: [dict(((375, 'A'), (337, 'B'))),
+                      dict(((375, 'B'), (437, 'B')))],
+                18: '1',
+                21: '2',
+                35: '8',
+                38: '10',
+                40: '2',
+                44: '1',
+                49: 'BLA',
+                52: '20110215-02:20:52.675',
+                54: '2',
+                55: 'PROD',
+                56: 'BLA',
+                57: 'DEST',
+                59: '0',
+                143: 'LN',
+                10: '000'} == res
         # make sure that with a group finishing the message it still works
         msg = (b'8=FIX.4.2;35=8;49=BLA;56=BLA;57=DEST;143=LN;11=eleven;18=1;21=2;54=2;40=2;59=0;55=PROD;'
                b'38=10;44=1;52=20110215-02:20:52.675;'
@@ -191,24 +188,24 @@ class TestReference(object):
 
 
         res = codec.parse(msg, separator=';')
-        assert {8: b'FIX.4.2',
-                11: b'eleven',
-                382: [dict(((375, b'A'), (337, b'B'))),
-                      dict(((375, b'B'), (437, b'B')))],
-                18: b'1',
-                21: b'2',
-                35: b'8',
-                38: b'10',
-                40: b'2',
-                44: b'1',
-                49: b'BLA',
-                52: b'20110215-02:20:52.675',
-                54: b'2',
-                55: b'PROD',
-                56: b'BLA',
-                57: b'DEST',
-                59: b'0',
-                143: b'LN',
+        assert {8: 'FIX.4.2',
+                11: 'eleven',
+                382: [dict(((375, 'A'), (337, 'B'))),
+                      dict(((375, 'B'), (437, 'B')))],
+                18: '1',
+                21: '2',
+                35: '8',
+                38: '10',
+                40: '2',
+                44: '1',
+                49: 'BLA',
+                52: '20110215-02:20:52.675',
+                54: '2',
+                55: 'PROD',
+                56: 'BLA',
+                57: 'DEST',
+                59: '0',
+                143: 'LN',
                 } == res
 
     def test_consecutive_rgroups(self, spec):
@@ -230,8 +227,8 @@ class TestReference(object):
                        (55, 'EURGBP'),
                        (10, '000')
                        )
-        serialised = '35=B;215=1;216=1;146=2;55=EURUSD;55=EURGBP;' \
-                     '10=000;'.replace(';', chr(1)).encode('UTF-8')
+        serialised = '35=B;215=1;216=1;' \
+                     '146=2;55=EURUSD;55=EURGBP;10=000;'.replace(';', chr(1)).encode('UTF-8')
         assert serialised == codec.serialise(msg)
 
     def test_nested_rgroup(self, spec):
@@ -301,8 +298,8 @@ class TestReference(object):
                        (17807, '11'),
                        (10, '000')
                        )
-        serialised = '35=AJ;232=2;233=bli;234=blu;233=blih;234=bluh;555=0;' \
-                     '17807=11;10=000;'.replace(';', chr(1)).encode('UTF-8')
+        serialised = '35=AJ;232=2;233=bli;234=blu;233=blih;234=bluh;' \
+                     '555=0;17807=11;10=000;'.replace(';', chr(1)).encode('UTF-8')
         assert serialised == codec.serialise(msg)
 
     def test_large_msg(self, spec, profiler):
@@ -384,8 +381,8 @@ class TestOperators(object):
         ''' validate basic functions of fix dict'''
         a = self.FixMessage()
         a.load_fix(self.fixmessage)
-        assert a[35] == b'D'
-        assert a.get(35) == b'D'
+        assert a[35] == 'D'
+        assert a.get(35) == 'D'
         with pytest.raises(KeyError):
             a[7807]
         assert a.get(7807) is None
@@ -574,11 +571,11 @@ class TestOperators(object):
 
     def test_parser_errors(self):
         a = self.FixMessage().load_fix(b'35=8;151==3;15=2=4;132=1453;123;3333=;21=31;')
-        assert b'8' == a[35]
-        assert b'=3' == a[151]
-        assert b'2=4' == a[15]
-        assert b'1453;123' == a[132]
-        assert b'' == a[3333]
+        assert '8' == a[35]
+        assert '=3' == a[151]
+        assert '2=4' == a[15]
+        assert '1453;123' == a[132]
+        assert '' == a[3333]
 
     def test_parsing_newlines(self):
         a = self.FixMessage().load_fix(b"""35=8;123=bla bla
@@ -586,8 +583,8 @@ class TestOperators(object):
       bla bla;
       1240=12;
       """)
-        assert b'12' == a[1240]
-        assert b'bla bla' in a[123]
+        assert '12' == a[1240]
+        assert 'bla bla' in a[123]
 
     def test_from_buffer(self):
         """
@@ -596,10 +593,10 @@ class TestOperators(object):
         buff = b"9=10\x0135=D\x0134=3\x0110=154\x01"
         msg = FixMessage.from_buffer(buff, Codec())
         assert {9, 35, 34, 10} == set(msg.keys())
-        assert b'10' == msg[9]
-        assert b'D' == msg[35]
-        assert b'3' == msg[34]
-        assert b'154' == msg[10]
+        assert '10' == msg[9]
+        assert 'D' == msg[35]
+        assert '3' == msg[34]
+        assert '154' == msg[10]
         assert msg.get_raw_message() == buff
 
     def test_pickling(self):
@@ -646,12 +643,12 @@ class TestOperators(object):
         before.codec = Codec(spec=spec)
         before.load_fix(data, separator='|')
         composition = [(spec.tags.by_tag(i), False) for i in (279, 269, 278, 55, 270, 15, 271, 346)]
-        spec.msg_types[b'D'].add_group(spec.tags.by_tag(268), composition)
+        spec.msg_types['D'].add_group(spec.tags.by_tag(268), composition)
         after = FixMessage()
         after.codec = Codec(spec=spec, fragment_class=FixFragment)
         after.load_fix(data, separator='|')
-        assert isinstance(before[268], (str, unicode, bytes))  # 268 is not parsed as a repeating group
-        assert before[270] == b'1.37224'  # 268 is not parsed as a repeating group, so 270 takes the second value
+        assert isinstance(before[268], (six.binary_type, six.text_type))  # 268 is not parsed as a repeating group
+        assert before[270] == '1.37224'  # 268 is not parsed as a repeating group, so 270 takes the second value
         assert isinstance(after[268], RepeatingGroup)
         with pytest.raises(KeyError):
             after[270]

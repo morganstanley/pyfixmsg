@@ -24,6 +24,7 @@ HEADER_TAGS = [8, 9, 35, 1128, 1156, 1129, 49, 56, 115, 128,
                90, 91, 34, 50, 142, 57, 143, 116, 144, 129, 145,
                43, 97, 52, 122, 212, 213, 347, 369, 370, 1128, 1129]
 TRAILER_TAGS = [93, 89, 10]
+ENCODED_DATA_TAGS = [349, 351, 353, 355, 357, 359, 361, 363, 365]
 HEADER_SORT_MAP = {t: i for i, t in enumerate(HEADER_TAGS)}
 HEADER_SORT_MAP.update({10: int(10e9), 89: int(10e9-1), 93: int(10e9-2)})
 
@@ -116,6 +117,9 @@ class TagsReference(object):
         if eager:
             try:
                 self.by_name(None)
+            except KeyError:
+                pass
+            try:
                 self.by_tag(None)
             except KeyError:
                 pass
@@ -169,12 +173,13 @@ class FixSpec(object):
         self._eager = eager
         self.tags = None
         self._populate_tags()
-        self.msg_types = {m.msgtype.encode('ascii'): m for m in
-                          (MessageType(e, self) for e in self.tree.findall('messages/message'))}
+        self.msg_types = {m.msgtype: m for m in
+                          (MessageType(e, self) for e in
+                           self.tree.findall('messages/message'))}
         # We need to be able to look msg type for both decoded and raw values of tag 35
-        # this is effectively noop on python 2.7
-        self.msg_types.update({m.msgtype: m for m in
-                               (MessageType(e, self) for e in self.tree.findall('messages/message'))})
+        msg_type_list = list(self.msg_types.items())
+        self.msg_types.update(
+            {key.encode('ascii'): val for key, val in msg_type_list})
         self.header_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('header/field')]
         self.trailer_tags = [self.tags.by_name(t.get('name')) for t in self.tree.findall('trailer/field')]
         self.tree = None

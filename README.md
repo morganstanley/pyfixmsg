@@ -5,7 +5,7 @@ Pyfixmsg
 [![Build Status](https://travis-ci.org/Morgan-Stanley/pyfixmsg.svg?branch=master)](https://travis-ci.org/Morgan-Stanley/pyfixmsg)
 
 ``pyfixmsg``is a library for parsing, manipulating and serialising [FIX](http://www.fixtradingcommunity.org)
-messages, primarily geared towards testing. 
+messages, primarily geared towards testing. The library supports both Python 2 and 3.
 
 Objectives
 -----------
@@ -18,7 +18,7 @@ Objectives
 
 Dependencies
 ------------
- * None for the core library. 
+ * ``six`` library (at least version 1.12.0).
  * Optional [lxml](http://lxml.de) for faster parsing of xml specification files.
  * Optional pytest to run the tests.
  * Optional [spec files from quickfix](https://github.com/quickfix/quickfix/tree/master/spec) to get started with 
@@ -39,6 +39,7 @@ How to run the tests
  * ``py.test --spec=/var/tmp/FIX50.xml`` will launch the tests against the spec file in /var/tmp. You will need to load
  the [spec files from quickfix](https://github.com/quickfix/quickfix/tree/master/spec) to get the tests to work. 
  The spec files are not included in this distribution.
+
 
 Notes
 -----

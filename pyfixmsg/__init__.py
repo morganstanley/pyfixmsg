@@ -4,11 +4,12 @@ TODO Write doc
 import sys
 import itertools
 
-if sys.version_info.major >= 3:
-    STRSUM = sum
-    unicode = str  # pylint: disable=W0622,C0103
-else:
+import six
+
+if six.PY2:
     STRSUM = lambda x: sum(bytearray(x))
+else:
+    STRSUM = sum
 
 
 class RepeatingGroup(list):
@@ -124,7 +125,7 @@ def len_and_chsum(msg, group=False):
         if not isinstance(tag, bytes):
             tag = str(tag).encode('ascii')
         if not isinstance(value, bytes) and not isinstance(value, RepeatingGroup):
-            if isinstance(value, unicode):
+            if isinstance(value, six.text_type):
                 value = value.encode('UTF-8')
             else:
                 value = str(value).encode('UTF-8')
