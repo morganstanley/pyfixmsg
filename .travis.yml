@@ -1,10 +1,11 @@
 language: python
 python:
   - "2.7"
-  - "3.4"
+  - "3.7"
 # command to install dependencies
 install:
   - curl https://raw.githubusercontent.com/quickfix/quickfix/master/spec/FIX50.xml -o FIX50.xml
+  - pip install -r requirements.txt -U
 # command to run tests
 script:
   - py.test --spec=FIX50.xml
